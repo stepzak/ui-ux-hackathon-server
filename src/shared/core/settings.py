@@ -1,3 +1,5 @@
+import pathlib
+
 from pydantic_settings import BaseSettings
 
 
@@ -12,13 +14,15 @@ class Settings(BaseSettings):
     DATABASE_PORT: str
     POSTGRES_PASSWORD: str
     POSTGRES_USER: str
-    PASSWORD: str
+    POSTGRES_PASSWORD: str
 
     DRIVER_ALEMBIC: str
 
-
     HOST_SERVER: str = "0.0.0.0"
     PORT_SERVER: int = 8000
+
+    UPLOAD_DIR_HITS: pathlib.Path
+    UPLOAD_DIR_VISITS: pathlib.Path
 
 
 

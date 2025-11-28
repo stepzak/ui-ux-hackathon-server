@@ -25,6 +25,6 @@ COPY --from=builder /usr/local/lib/python3.13/site-packages/ /usr/local/lib/pyth
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
 RUN adduser -D -u 1000 fastapi-user
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app/
 
 USER fastapi-user

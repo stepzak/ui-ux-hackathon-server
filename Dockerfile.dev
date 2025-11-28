@@ -1,0 +1,13 @@
+FROM foodlink-base:latest
+
+WORKDIR /app
+
+USER root
+
+RUN chown -R fastapi-user:fastapi-user /app && \
+    mkdir -p /app/files_hits && \
+    mkdir -p /app/files_visits
+
+USER fastapi-user
+
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/src", "--reload-include", "*.py"]

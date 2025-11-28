@@ -10,8 +10,7 @@ services:
       - ./frontend/build:/usr/share/nginx/html
       - ./nginx/logs:/var/log/nginx
     depends_on:
-      - load-service
-      - dashboard-service
+      - loading-service
     networks:
       - app
 
@@ -20,12 +19,18 @@ services:
     image: postgres:18-alpine
     env_file:
        - .env
+    environment:
+      - DATABASE:${DATABASE}
+      - PG_USER=${POSTGRES_USER}
+      - PG_PASSWORD=${POSTGRES_PASSWORD}
+
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data2:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${USERNAME_PG} -d ${DATABASE}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${DATABASE}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -50,8 +55,51 @@ services:
     networks:
       app:
 
+  loading-service:
+    profiles: [ "all", "web", "loading" ]
+    env_file:
+      - .env
+    build:
+      dockerfile: Dockerfile.dev
+      context: .
+      network: host
+    volumes:
+      - ./src/microservices/loading/src:/app/src:rw
+      - ./src/shared:/app/src/shared:rw
+      - ./files_hits:/app/${UPLOAD_DIR_HITS}s:rw
+      - ./files_visits:${UPLOAD_DIR_VISITS}:rw
+    environment:
+      - WEB_CONCURRENCY=1
+      - UVICORN_RELOAD=true
+      - UVICORN_RELOAD_DIRS=/app/src
+      - UVICORN_RELOAD_INCLUDE=*.py
+      - UVICORN_RELOAD_EXCLUDE=*.tmp
+
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    dns_opt:
+      - attempts:3
+      - timeout:3
+    dns_search:
+      - .
+    ports:
+      - "${PORT_LOADING}:${PORT_SERVER}"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://${HOST_SERVER}:${PORT_SERVER}/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      app:
+        aliases:
+          - loading-service
+
 volumes:
-  postgres_data:
+  postgres_data2:
     
 networks:
   app:
