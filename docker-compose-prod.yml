@@ -64,8 +64,7 @@ services:
       context: .
       network: host
     volumes:
-      - ./files_hits:/app/${UPLOAD_DIR_HITS}s:rw
-      - ./files_visits:${UPLOAD_DIR_VISITS}:rw
+      - ./versions:${UPLOAD_DIR}
 
     dns:
       - 8.8.8.8

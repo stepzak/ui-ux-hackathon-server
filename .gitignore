@@ -10,8 +10,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-files_hits/*
-files_visits/*
+versions/*
 env/
 build/
 develop-eggs/

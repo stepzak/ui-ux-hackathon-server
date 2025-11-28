@@ -66,8 +66,7 @@ services:
     volumes:
       - ./src/microservices/loading/src:/app/src:rw
       - ./src/shared:/app/src/shared:rw
-      - ./files_hits:/app/${UPLOAD_DIR_HITS}s:rw
-      - ./files_visits:${UPLOAD_DIR_VISITS}:rw
+      - ./versions:${UPLOAD_DIR}
     environment:
       - WEB_CONCURRENCY=1
       - UVICORN_RELOAD=true

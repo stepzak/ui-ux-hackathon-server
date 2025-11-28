@@ -21,8 +21,7 @@ class Settings(BaseSettings):
     HOST_SERVER: str = "0.0.0.0"
     PORT_SERVER: int = 8000
 
-    UPLOAD_DIR_HITS: pathlib.Path
-    UPLOAD_DIR_VISITS: pathlib.Path
+    UPLOAD_DIR: pathlib.Path
 
 
 
