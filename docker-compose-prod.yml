@@ -89,6 +89,40 @@ services:
         aliases:
           - loading-service
 
+  metrics-service:
+    profiles: [ "all", "web", "metrics" ]
+    env_file:
+      - .env
+    build:
+      dockerfile: src/microservices/loading/Dockerfile.prod
+      context: .
+      network: host
+    volumes:
+      - ./versions:${UPLOAD_DIR}
+
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    dns_opt:
+      - attempts:3
+      - timeout:3
+    dns_search:
+      - .
+    ports:
+      - "${PORT_METRICS}:${PORT_SERVER}"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://${HOST_SERVER}:${PORT_SERVER}/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      app:
+        aliases:
+          - metrics-service
+
 volumes:
   postgres_data2:
     

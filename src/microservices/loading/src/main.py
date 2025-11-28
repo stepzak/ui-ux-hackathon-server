@@ -1,6 +1,8 @@
 from fastapi import Form, UploadFile, File
 from sqlalchemy import select
 from starlette.exceptions import HTTPException
+
+from src.shared.schemas.versions import VersionMetrics
 from src.shared.utils.analysis import extract_metrics_from_parquet
 from src.shared.core.settings import settings
 from src.shared.dependencies.db import db_dep
@@ -34,13 +36,6 @@ async def upload_files(db: db_dep,
     obj = VersionFile(version_name = version, path_to_hits= str(upload_hits_file), path_to_visits = str(upload_visits_file), meta = metrics)
     db.add(obj)
     await db.commit()
+    return metrics
     #except Exception as e:
      #   raise HTTPException(detail = str(e), status_code = 400)
-
-@app.get("/{version}")
-async def get_metrics(version: str, db: db_dep):
-    stmt = select(VersionFile).where(VersionFile.version_name == version)
-    result = await db.execute(stmt)
-    res = result.scalar_one_or_none()
-    if res:
-        return res.meta
