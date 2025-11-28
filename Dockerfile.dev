@@ -1,4 +1,4 @@
-FROM foodlink-base:latest
+FROM ui-ux-base:latest
 
 WORKDIR /app
 
@@ -6,7 +6,8 @@ USER root
 
 RUN chown -R fastapi-user:fastapi-user /app && \
     mkdir -p /app/files_hits && \
-    mkdir -p /app/files_visits
+    mkdir -p /app/files_visits && chown -R fastapi-user:fastapi-user /app/files_hits && \
+    chown -R fastapi-user:fastapi-user /app/files_visits
 
 USER fastapi-user
 

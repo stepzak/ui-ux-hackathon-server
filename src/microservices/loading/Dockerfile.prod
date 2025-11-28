@@ -1,0 +1,13 @@
+FROM ui-ux-base:latest
+
+WORKDIR /app
+
+USER root
+COPY src/microservices/loading/ .
+COPY src/shared/ ./src/shared/
+
+RUN chown -R fastapi-user:fastapi-user /app
+
+USER fastapi-user
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

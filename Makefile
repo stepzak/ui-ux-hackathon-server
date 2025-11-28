@@ -4,7 +4,7 @@ build-base:
 	docker build -t ui-ux-base:latest . --network=host
 
 build-all: build-base
-	docker compose --profile all -f docker-compose-dev.yml build
+	docker compose --profile all -f docker-compose-prod.yml build
 
 up:
 	docker compose --profile all -f docker-compose-prod.yml up
