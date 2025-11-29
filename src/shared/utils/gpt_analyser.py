@@ -73,7 +73,6 @@ def analyze_comparison_with_gpt(context: dict, version1: str, version2: str) -> 
       ]
     }}
         """
-    print(prompt)
     completion = client.responses.create(
         instructions = "Ты — UX-аналитик. Отвечай структурированно, на русском языке, в формате JSON.",
         input = prompt,
