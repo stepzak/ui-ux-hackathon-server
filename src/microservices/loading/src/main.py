@@ -1,5 +1,5 @@
 import os
-import pathlib
+import pyarrow.parquet as pq
 
 from fastapi import Form, UploadFile, File
 from src.shared.core.settings import settings
@@ -32,8 +32,10 @@ async def upload_files(db: db_dep,
         f.write(await visits_file.read())
 
     #TODO: PARSE FILES
-    metrics = extract_metrics_from_hits_chunks(upload_hits_file, 20_000)
-    metrics.update(extract_metrics_from_visits_chunks(upload_visits_file, 20_000))
+    f_hits = pq.ParquetFile(upload_hits_file)
+    metrics = extract_metrics_from_hits_chunks(f_hits, 150000)
+    f_visits = pq.ParquetFile(upload_visits_file)
+    metrics.update(extract_metrics_from_visits_chunks(f_visits, 150000))
     obj = VersionFile(version_name = version, path_to_hits= str(upload_hits_file), path_to_visits = str(upload_visits_file), meta = metrics)
     db.add(obj)
     await db.commit()
