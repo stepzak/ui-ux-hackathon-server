@@ -1,3 +1,3 @@
-```sudo make build-base```
+```sudo make build-dev```
 
 ```sudo make dev```
