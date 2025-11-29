@@ -19,4 +19,4 @@
 * UPLOAD_DIR - директория, куда выгружать файлы
 
 * OPEN_AI_FOLDER - folder ID Yandex AI Studio
-* OPEN_AI_KEY - API Key Yandex AI Studo
+* OPEN_AI_KEY - API Key Yandex AI Studio
