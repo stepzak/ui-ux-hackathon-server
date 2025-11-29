@@ -21,9 +21,9 @@ async def compare_metrics(v1_name: str, v2_name: str, db: db_dep):
     )
 
     res = await db.execute(stmt_check)
-    ret = res.first()[0]
+    ret = res.first()
     if ret:
-        return ret.results
+        return ret[0].results
 
     stmt1 = select(VersionFile).where(VersionFile.version_name == v1_name)
     stmt2 = select(VersionFile).where(VersionFile.version_name == v2_name)
