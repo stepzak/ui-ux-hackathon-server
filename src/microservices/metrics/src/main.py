@@ -15,6 +15,16 @@ app = create_app(title = "Metrics Service", version = settings.API_V1_STR, opena
 @app.get("/cmp/{v1_name}/{v2_name}")
 async def compare_metrics(v1_name: str, v2_name: str, db: db_dep):
     print(f"Comparing {v1_name} and {v2_name}")
+    stmt_check = select(VersionComparison).where(
+        VersionComparison.version_first == v1_name,
+        VersionComparison.version_second == v2_name,
+    )
+
+    res = await db.execute(stmt_check)
+    ret = res.first()[0]
+    if ret:
+        return ret.results
+
     stmt1 = select(VersionFile).where(VersionFile.version_name == v1_name)
     stmt2 = select(VersionFile).where(VersionFile.version_name == v2_name)
 
@@ -30,7 +40,7 @@ async def compare_metrics(v1_name: str, v2_name: str, db: db_dep):
     print(f"Comparing {v1_name} and {v2_name}")
     comparison = compare_versions_full(v1_data, v2_data)
     print(f"Sending {v1_name} and {v2_name} to LLM", flush=True)
-    analysis = analyze_comparison_with_gpt(comparison)
+    analysis = analyze_comparison_with_gpt(comparison, v1_name, v2_name)
     new_obj = VersionComparison(version_first=v1_name, version_second=v2_name, results = analysis)
     db.add(new_obj)
     await db.commit()

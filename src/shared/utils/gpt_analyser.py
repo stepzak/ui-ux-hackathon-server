@@ -11,11 +11,11 @@ model = f"gpt://{folder_id}/{settings.OPEN_AI_MODEL}"
 client = OpenAI(
 base_url="https://rest-assistant.api.cloud.yandex.net/v1", api_key=api_key, project=folder_id)
 
-def analyze_comparison_with_gpt(context: dict) -> dict:
-    compressed_context = compress_context(context, max_chars=200)
+def analyze_comparison_with_gpt(context: dict, version1: str, version2: str) -> dict:
+    compressed_context = compress_context(context, max_chars=2000)
 
     prompt = f"""
-    Ты — UX-аналитик. Сравни поведение пользователей между двумя версиями сайта priem.mai.ru: v1 и v2.
+    Ты — UX-аналитик. Сравни поведение пользователей между двумя версиями сайта priem.mai.ru: {version1} и {version2}.
     
     Данные:
     {compressed_context}
@@ -35,7 +35,11 @@ def analyze_comparison_with_gpt(context: dict) -> dict:
           "metric": "bounce_rate",
           "change": "-5%",
           "affected_segments": ["mobile | ios15"],
-          "description": "Описание улучшения"
+          "description": "Описание улучшения",
+          "hypothesis": "Гипотеза",
+          "title": "Название метрики",
+          "v1_value": "v1_value",
+          "v2_value": "v2_value"
         }}
       ],
       "regressions": [
@@ -43,7 +47,11 @@ def analyze_comparison_with_gpt(context: dict) -> dict:
           "metric": "form_submit_rate",
           "change": "-12%",
           "affected_segments": ["desktop | Chrome"],
-          "description": "Описание ухудшения"
+          "description": "Описание ухудшения",
+            "title": "Название метрики",
+            "hypothesis": "Гипотеза",
+          "v1_value": "v1_value",
+          "v2_value": "v2_value"
         }}
       ],
       "expected_no_change": [
@@ -52,7 +60,11 @@ def analyze_comparison_with_gpt(context: dict) -> dict:
           "v1": 1.8,
           "v2": 1.8,
           "expected": "Должно было улучшиться",
-          "description": "Описание"
+          "description": "Описание",
+          "hypothesis": "Гипотеза",
+            "title": "Название метрики",
+          "v1_value": "v1_value",
+          "v2_value": "v2_value"
         }}
       ],
       "recommendations": [
@@ -70,9 +82,8 @@ def analyze_comparison_with_gpt(context: dict) -> dict:
     )
 
     answer_text = completion.output_text
-    print(completion.__repr__())
     try:
-        print(answer_text)
+        answer_text = answer_text.replace("`", "").replace("json\n", "")
         return json.loads(answer_text)
     except json.JSONDecodeError:
         return {"raw_response": answer_text}
