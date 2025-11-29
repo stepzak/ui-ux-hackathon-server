@@ -4,7 +4,6 @@ def compare_versions_full(v1_data: dict, v2_data: dict) -> dict:
         #"patterns_comparison": compare_patterns(v1_data["patterns"], v2_data["patterns"]),
         "device_comparison": compare_device_agg(v1_data["device_agg"], v2_data["device_agg"]),
         "funnels_comparison": compare_conversion_funnels(v1_data["funnels"], v2_data["funnels"]),
-        "utm_source_comparison": compare_utm_source_impact(v1_data["metrics"], v2_data["metrics"]),
         "error_rates_comparison": compare_error_rates_by_page(v1_data["metrics"], v2_data["metrics"]),
         "time_on_page_comparison": compare_time_on_page(v1_data["metrics"], v2_data["metrics"]),
         "new_vs_returning_comparison": compare_new_vs_returning_users(v1_data["metrics"], v2_data["metrics"]),
@@ -100,24 +99,6 @@ def compare_patterns(patterns_v1: dict, patterns_v2: dict) -> dict:
             "delta_pct": round(delta_pct, 2)
         }
 
-    return comparison
-
-def compare_utm_source_impact(metrics_v1: dict, metrics_v2: dict) -> dict:
-    utm1 = metrics_v1.get('utm_source_distribution', {})
-    utm2 = metrics_v2.get('utm_source_distribution', {})
-    comparison = {}
-    all_sources = set(utm1.keys()) | set(utm2.keys())
-    for src in all_sources:
-        v1_val = utm1.get(src, 0)
-        v2_val = utm2.get(src, 0)
-        delta = v2_val - v1_val
-        delta_pct = (delta / v1_val * 100) if v1_val != 0 else 0
-        comparison[src] = {
-            "v1": v1_val,
-            "v2": v2_val,
-            "delta": delta,
-            "delta_pct": round(delta_pct, 2)
-        }
     return comparison
 
 def compare_error_rates_by_page(metrics_v1: dict, metrics_v2: dict) -> dict:

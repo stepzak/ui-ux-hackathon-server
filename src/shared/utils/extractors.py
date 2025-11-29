@@ -39,7 +39,6 @@ def extract_metrics_from_visits_chunks(visits_table: pq.ParquetFile, chunk_size:
     total_goals_from_visits = 0
     device_counts = Counter()
     os_counts = Counter()
-    utm_counts = Counter()
     new_user_bounce_sum = 0
     new_user_duration_sum = 0
     new_user_goals_sum = 0
@@ -71,9 +70,6 @@ def extract_metrics_from_visits_chunks(visits_table: pq.ParquetFile, chunk_size:
             device_counts.update(df_batch['ym:s:deviceCategory'].value_counts())
         if 'ym:s:operatingSystem' in df_batch.columns:
             os_counts.update(df_batch['ym:s:operatingSystem'].value_counts())
-        if 'ym:s:lastsignUTMSource' in df_batch.columns:
-            utm_series = df_batch['ym:s:lastsignUTMSource'].dropna().astype(str)
-            utm_counts.update(utm_series)
         if 'ym:s:isNewUser' in df_batch.columns:
             new_users_batch = df_batch[df_batch['ym:s:isNewUser'] == 1]
             returning_users_batch = df_batch[df_batch['ym:s:isNewUser'] == 0]
@@ -116,7 +112,6 @@ def extract_metrics_from_visits_chunks(visits_table: pq.ParquetFile, chunk_size:
     avg_time_per_page = {page: time_per_page[page] / page_views_count[page] for page in time_per_page if
                          page_views_count[page] > 0}
     page_error_rates = {}
-    utm_source_distribution = dict(utm_counts)
     new_user_metrics = {
         'bounce_rate': new_user_bounce_sum / new_user_count if new_user_count > 0 else 0,
         'avg_duration': new_user_duration_sum / new_user_count if new_user_count > 0 else 0,
@@ -148,7 +143,6 @@ def extract_metrics_from_visits_chunks(visits_table: pq.ParquetFile, chunk_size:
         "tg_contact_clicks": tg_contact_clicks,
         "device_category_distribution": dict(device_counts),
         "os_distribution": dict(os_counts),
-        "utm_source_distribution": utm_source_distribution,
         "avg_time_per_page": avg_time_per_page,
         "page_error_rates": page_error_rates,
         "new_user_metrics": new_user_metrics,
