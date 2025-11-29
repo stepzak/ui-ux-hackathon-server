@@ -20,11 +20,14 @@ class Settings(BaseSettings):
 
     HOST_SERVER: str = "0.0.0.0"
     PORT_SERVER: int = 8000
+    PORT_LOADING: int
+    PORT_METRICS: int
 
     UPLOAD_DIR: pathlib.Path
 
-
-
+    OPEN_AI_KEY: str
+    OPEN_AI_FOLDER: str
+    OPEN_AI_MODEL: str = "qwen3-235b-a22b-fp8/latest"
     class Config:
         env_file = ".env"
 

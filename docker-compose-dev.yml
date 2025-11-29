@@ -107,7 +107,7 @@ services:
     volumes:
       - ./src/microservices/metrics/src:/app/src:rw
       - ./src/shared:/app/src/shared:rw
-      - versions_files:${UPLOAD_DIR}
+      - ./versions:/app/versions
     environment:
       - WEB_CONCURRENCY=1
       - UVICORN_RELOAD=true
@@ -140,7 +140,6 @@ services:
 
 volumes:
   postgres_data2:
-  versions_files:
     
 networks:
   app:

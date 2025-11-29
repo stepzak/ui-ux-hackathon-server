@@ -1,73 +1,20 @@
-import pandas as pd
-import pyarrow.parquet as pq
-from collections import Counter
-
-def extract_metrics_from_parquet(hits_path: str, visits_path: str, chunk_size: int = 10000):
-    """
-    Извлекает метрики из Parquet-файлов по чанкам, чтобы не грузить всё в память.
-    """
-    # Инициализируем агрегаты
-    visits_count = 0
-    hits_count = 0
-    visit_duration_sum = 0
-    bounce_count = 0
-    page_views_sum = 0
-    error_count = 0
-    not_bounce_count = 0
-    link_click_count = 0
-
-    # Для подсчёта целей
-    all_goals_str = ""
-    device_counts = Counter()
-    os_counts = Counter()
-
-    visits_table = pq.ParquetFile(visits_path)
-    for batch in visits_table.iter_batches(batch_size=chunk_size):
-        df_batch = batch.to_pandas()
-        df_batch["ym:s:goalsID"] = df_batch["ym:s:goalsID"].str.replace("[", "").str.replace("]", "")
-        visits_count += len(df_batch)
-        visit_duration_sum += df_batch['ym:s:visitDuration'].sum()
-        bounce_count += df_batch['ym:s:bounce'].sum()
-        page_views_sum += df_batch['ym:s:pageViews'].sum()
-
-
-        if 'ym:s:goalsID' in df_batch.columns:
-            goals_series = df_batch['ym:s:goalsID'].dropna().astype(str)
-            all_goals_str += " " + " ".join(goals_series)
-
-    hits_table = pq.ParquetFile(hits_path)
-    for batch in hits_table.iter_batches(batch_size=chunk_size):
-        df_batch = batch.to_pandas()
-
-        hits_count += len(df_batch)
-        error_count += (df_batch['ym:pv:httpError'] != 0).sum()
-        not_bounce_count += df_batch['ym:pv:notBounce'].sum()
-        link_click_count += df_batch['ym:pv:link'].sum()
-
-        if 'ym:pv:goalsID' in df_batch.columns:
-            goals_series = df_batch['ym:pv:goalsID'].dropna().astype(str)
-            all_goals_str += "".join(goals_series)
-
-    metrics = {
-        "visits_count": visits_count,
-        "hits_count": hits_count,
-        "avg_visit_duration": visit_duration_sum / visits_count if visits_count > 0 else 0,
-        "bounce_rate": bounce_count / visits_count if visits_count > 0 else 0,
-        "avg_page_views": page_views_sum / visits_count if visits_count > 0 else 0,
-        "error_rate": error_count / hits_count if hits_count > 0 else 0,
-        "not_bounce_rate": not_bounce_count / hits_count if hits_count > 0 else 0,
-        "link_click_rate": link_click_count / hits_count if hits_count > 0 else 0,
+def compare_versions_full(v1_data: dict, v2_data: dict) -> dict:
+    comparison = {
+        "metrics_comparison": compare_versions_metrics(v1_data["metrics"], v2_data["metrics"]),
+        #"patterns_comparison": compare_patterns(v1_data["patterns"], v2_data["patterns"]),
+        "device_comparison": compare_device_agg(v1_data["device_agg"], v2_data["device_agg"]),
+        "funnels_comparison": compare_conversion_funnels(v1_data["funnels"], v2_data["funnels"]),
+        "utm_source_comparison": compare_utm_source_impact(v1_data["metrics"], v2_data["metrics"]),
+        "error_rates_comparison": compare_error_rates_by_page(v1_data["metrics"], v2_data["metrics"]),
+        "time_on_page_comparison": compare_time_on_page(v1_data["metrics"], v2_data["metrics"]),
+        "new_vs_returning_comparison": compare_new_vs_returning_users(v1_data["metrics"], v2_data["metrics"]),
+        "goals_completion_comparison": compare_goals_completion(v1_data["metrics"], v2_data["metrics"]),
+        "device_performance_comparison": compare_device_performance_by_metric(v1_data["metrics"], v2_data["metrics"]),
+        "os_browser_performance_comparison": compare_os_browser_performance(v1_data["metrics"], v2_data["metrics"]),
+        "session_depth_comparison": compare_session_depth_and_pages(v1_data["metrics"], v2_data["metrics"]),
+        "form_interactions_comparison": compare_form_interactions(v1_data["metrics"], v2_data["metrics"]),
     }
-    all_goals_str = all_goals_str.replace("[", "").replace("]", "")
-    goals_list = all_goals_str.strip().split()
-    goal_counts = Counter(goals_list)
-    metrics['form_view_count'] = goal_counts.get('94939123', 0)
-    metrics['form_submit_count'] = goal_counts.get('94939720', 0)
-    metrics['vk_contact_clicks'] = goal_counts.get('225392702', 0)
-    metrics['tg_contact_clicks'] = goal_counts.get('225392736', 0)
-
-
-    return metrics
+    return comparison
 
 def compare_versions_metrics(metrics_v1: dict, metrics_v2: dict) -> dict:
     comparison = {}
@@ -89,13 +36,71 @@ def compare_versions_metrics(metrics_v1: dict, metrics_v2: dict) -> dict:
     return comparison
 
 def compare_device_agg(device_agg_v1: list, device_agg_v2: list) -> dict:
-    # (реализация через pandas или вручную)
-    # Возвращает список изменений
-    pass
+    def list_to_dict(agg_list):
+        result = {}
+        for item in agg_list:
+            key = (item.get('ym:s:deviceCategory'), item.get('ym:s:operatingSystem'))
+            result[key] = item
+        return result
+
+    dict_v1 = list_to_dict(device_agg_v1)
+    dict_v2 = list_to_dict(device_agg_v2)
+
+    comparison = {
+        "common_segments": {},
+        "only_in_v1": [],
+        "only_in_v2": []
+    }
+
+    all_keys = set(dict_v1.keys()) | set(dict_v2.keys())
+
+    for key in all_keys:
+        v1_data = dict_v1.get(key)
+        v2_data = dict_v2.get(key)
+
+        if v1_data is not None and v2_data is not None:
+            segment_comparison = {}
+            for metric in ['visits', 'avg_duration', 'bounce_rate', 'form_view_rate', 'form_submit_rate']:
+                v1_val = v1_data.get(metric, 0)
+                v2_val = v2_data.get(metric, 0)
+                if isinstance(v1_val, (int, float)) and isinstance(v2_val, (int, float)):
+                    delta = v2_val - v1_val
+                    delta_pct = (delta / v1_val * 100) if v1_val != 0 else 0
+                    segment_comparison[metric] = {
+                        "v1": v1_val,
+                        "v2": v2_val,
+                        "delta": delta,
+                        "delta_pct": round(delta_pct, 2)
+                    }
+            comparison["common_segments"][str(key)] = segment_comparison
+        elif v1_data is not None:
+            comparison["only_in_v1"].append(key)
+        elif v2_data is not None:
+            comparison["only_in_v2"].append(key)
+
+    return comparison
 
 def compare_patterns(patterns_v1: dict, patterns_v2: dict) -> dict:
-    # Возвращает изменения: сколько пользователей стало больше/меньше в каком паттерне
-    pass
+    comparison = {}
+    all_pattern_types = set(patterns_v1.keys()) | set(patterns_v2.keys())
+
+    for p_type in all_pattern_types:
+        list_v1 = patterns_v1.get(p_type, [])
+        list_v2 = patterns_v2.get(p_type, [])
+
+        count_v1 = len(list_v1)
+        count_v2 = len(list_v2)
+        delta = count_v2 - count_v1
+        delta_pct = (delta / count_v1 * 100) if count_v1 != 0 else 0
+
+        comparison[p_type] = {
+            "v1_count": count_v1,
+            "v2_count": count_v2,
+            "delta": delta,
+            "delta_pct": round(delta_pct, 2)
+        }
+
+    return comparison
 
 def compare_utm_source_impact(metrics_v1: dict, metrics_v2: dict) -> dict:
     utm1 = metrics_v1.get('utm_source_distribution', {})
@@ -124,26 +129,11 @@ def compare_error_rates_by_page(metrics_v1: dict, metrics_v2: dict) -> dict:
         v1_rate = errors_v1.get(page, 0)
         v2_rate = errors_v2.get(page, 0)
         delta = v2_rate - v1_rate
+
         comparison[page] = {
             "v1_error_rate": v1_rate,
             "v2_error_rate": v2_rate,
             "delta": delta
-        }
-    return comparison
-
-def compare_conversion_funnels(funnels_v1: dict, funnels_v2: dict) -> dict:
-    comparison = {}
-    steps = set(funnels_v1.keys()) | set(funnels_v2.keys())
-    for step in steps:
-        v1_count = funnels_v1.get(step, 0)
-        v2_count = funnels_v2.get(step, 0)
-        conversion_v1 = funnels_v1.get('conversion_rate', 0)
-        conversion_v2 = funnels_v2.get('conversion_rate', 0)
-        comparison[step] = {
-            "v1_count": v1_count,
-            "v2_count": v2_count,
-            "v1_conversion_rate": conversion_v1,
-            "v2_conversion_rate": conversion_v2
         }
     return comparison
 
@@ -157,6 +147,8 @@ def compare_time_on_page(metrics_v1: dict, metrics_v2: dict) -> dict:
         v2_time = time_v2.get(page, 0)
         delta = v2_time - v1_time
         delta_pct = (delta / v1_time * 100) if v1_time != 0 else 0
+        if abs(delta_pct)>99 or abs(delta_pct)<1:
+            continue
         comparison[page] = {
             "v1_avg_time": v1_time,
             "v2_avg_time": v2_time,
@@ -228,14 +220,16 @@ def compare_os_browser_performance(metrics_v1: dict, metrics_v2: dict) -> dict:
     for os in all_os:
         v1_conv = os_v1.get(os, {}).get('conversion_rate', 0)
         v2_conv = os_v2.get(os, {}).get('conversion_rate', 0)
-        os_comparison[os] = {"v1_conv_rate": v1_conv, "v2_conv_rate": v2_conv}
+        if abs( (v1_conv - v2_conv) / v1_conv ) > 0.05:
+            os_comparison[os] = {"v1_conv_rate": v1_conv, "v2_conv_rate": v2_conv}
 
     browser_comparison = {}
     all_browsers = set(browser_v1.keys()) | set(browser_v2.keys())
     for browser in all_browsers:
         v1_bounce = browser_v1.get(browser, {}).get('bounce_rate', 0)
         v2_bounce = browser_v2.get(browser, {}).get('bounce_rate', 0)
-        browser_comparison[browser] = {"v1_bounce": v1_bounce, "v2_bounce": v2_bounce}
+        if abs( (v2_bounce - v1_bounce) / v1_bounce ) > 0.05:
+            browser_comparison[browser] = {"v1_bounce": v1_bounce, "v2_bounce": v2_bounce}
 
     return {"os": os_comparison, "browser": browser_comparison}
 
@@ -260,4 +254,20 @@ def compare_form_interactions(metrics_v1: dict, metrics_v2: dict) -> dict:
         "form_submit_rate": {"v1": form_v1.get('submit_rate', 0), "v2": form_v2.get('submit_rate', 0)},
         "form_drop_off": {"v1": form_v1.get('drop_off_rate', 0), "v2": form_v2.get('drop_off_rate', 0)}
     }
+    return comparison
+
+def compare_conversion_funnels(funnels_v1: dict, funnels_v2: dict) -> dict:
+    comparison = {}
+    steps = set(funnels_v1.keys()) | set(funnels_v2.keys())
+    for step in steps:
+        v1_count = funnels_v1.get(step, 0)
+        v2_count = funnels_v2.get(step, 0)
+        conversion_v1 = funnels_v1.get('conversion_rate', 0)
+        conversion_v2 = funnels_v2.get('conversion_rate', 0)
+        comparison[step] = {
+            "v1_count": v1_count,
+            "v2_count": v2_count,
+            "v1_conversion_rate": conversion_v1,
+            "v2_conversion_rate": conversion_v2
+        }
     return comparison

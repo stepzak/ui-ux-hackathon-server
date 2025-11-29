@@ -6,6 +6,9 @@ build-base:
 build-all: build-base
 	docker compose --profile all -f docker-compose-prod.yml build
 
+build-dev: build-base
+	docker compose --profile all -f docker-compose-dev.yml build
+
 up:
 	docker compose --profile all -f docker-compose-prod.yml up
 
