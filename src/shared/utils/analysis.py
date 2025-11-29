@@ -1,10 +1,5 @@
-from collections import Counter
-
 import pandas as pd
-
-
 import pyarrow.parquet as pq
-import pandas as pd
 from collections import Counter
 
 def extract_metrics_from_parquet(hits_path: str, visits_path: str, chunk_size: int = 10000):
@@ -29,16 +24,12 @@ def extract_metrics_from_parquet(hits_path: str, visits_path: str, chunk_size: i
     visits_table = pq.ParquetFile(visits_path)
     for batch in visits_table.iter_batches(batch_size=chunk_size):
         df_batch = batch.to_pandas()
-
+        df_batch["ym:s:goalsID"] = df_batch["ym:s:goalsID"].str.replace("[", "").str.replace("]", "")
         visits_count += len(df_batch)
         visit_duration_sum += df_batch['ym:s:visitDuration'].sum()
         bounce_count += df_batch['ym:s:bounce'].sum()
         page_views_sum += df_batch['ym:s:pageViews'].sum()
 
-        if 'ym:s:deviceCategory' in df_batch.columns:
-            device_counts.update(df_batch['ym:s:deviceCategory'].value_counts())
-        if 'ym:s:operatingSystem' in df_batch.columns:
-            os_counts.update(df_batch['ym:s:operatingSystem'].value_counts())
 
         if 'ym:s:goalsID' in df_batch.columns:
             goals_series = df_batch['ym:s:goalsID'].dropna().astype(str)
@@ -55,7 +46,7 @@ def extract_metrics_from_parquet(hits_path: str, visits_path: str, chunk_size: i
 
         if 'ym:pv:goalsID' in df_batch.columns:
             goals_series = df_batch['ym:pv:goalsID'].dropna().astype(str)
-            all_goals_str += " " + " ".join(goals_series)
+            all_goals_str += "".join(goals_series)
 
     metrics = {
         "visits_count": visits_count,
@@ -67,7 +58,7 @@ def extract_metrics_from_parquet(hits_path: str, visits_path: str, chunk_size: i
         "not_bounce_rate": not_bounce_count / hits_count if hits_count > 0 else 0,
         "link_click_rate": link_click_count / hits_count if hits_count > 0 else 0,
     }
-
+    all_goals_str = all_goals_str.replace("[", "").replace("]", "")
     goals_list = all_goals_str.strip().split()
     goal_counts = Counter(goals_list)
     metrics['form_view_count'] = goal_counts.get('94939123', 0)
@@ -75,4 +66,198 @@ def extract_metrics_from_parquet(hits_path: str, visits_path: str, chunk_size: i
     metrics['vk_contact_clicks'] = goal_counts.get('225392702', 0)
     metrics['tg_contact_clicks'] = goal_counts.get('225392736', 0)
 
+
     return metrics
+
+def compare_versions_metrics(metrics_v1: dict, metrics_v2: dict) -> dict:
+    comparison = {}
+    for key in metrics_v1:
+        if key in metrics_v2:
+            val1 = metrics_v1[key]
+            val2 = metrics_v2[key]
+            if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
+                delta = val2 - val1
+                delta_pct = (delta / val1 * 100) if val1 != 0 else 0
+                comparison[key] = {
+                    "v1": val1,
+                    "v2": val2,
+                    "delta": delta,
+                    "delta_pct": round(delta_pct, 2)
+                }
+            else:
+                comparison[key] = {"v1": val1, "v2": val2, "delta": "N/A"}
+    return comparison
+
+def compare_device_agg(device_agg_v1: list, device_agg_v2: list) -> dict:
+    # (реализация через pandas или вручную)
+    # Возвращает список изменений
+    pass
+
+def compare_patterns(patterns_v1: dict, patterns_v2: dict) -> dict:
+    # Возвращает изменения: сколько пользователей стало больше/меньше в каком паттерне
+    pass
+
+def compare_utm_source_impact(metrics_v1: dict, metrics_v2: dict) -> dict:
+    utm1 = metrics_v1.get('utm_source_distribution', {})
+    utm2 = metrics_v2.get('utm_source_distribution', {})
+    comparison = {}
+    all_sources = set(utm1.keys()) | set(utm2.keys())
+    for src in all_sources:
+        v1_val = utm1.get(src, 0)
+        v2_val = utm2.get(src, 0)
+        delta = v2_val - v1_val
+        delta_pct = (delta / v1_val * 100) if v1_val != 0 else 0
+        comparison[src] = {
+            "v1": v1_val,
+            "v2": v2_val,
+            "delta": delta,
+            "delta_pct": round(delta_pct, 2)
+        }
+    return comparison
+
+def compare_error_rates_by_page(metrics_v1: dict, metrics_v2: dict) -> dict:
+    errors_v1 = metrics_v1.get('page_error_rates', {})
+    errors_v2 = metrics_v2.get('page_error_rates', {})
+    comparison = {}
+    all_pages = set(errors_v1.keys()) | set(errors_v2.keys())
+    for page in all_pages:
+        v1_rate = errors_v1.get(page, 0)
+        v2_rate = errors_v2.get(page, 0)
+        delta = v2_rate - v1_rate
+        comparison[page] = {
+            "v1_error_rate": v1_rate,
+            "v2_error_rate": v2_rate,
+            "delta": delta
+        }
+    return comparison
+
+def compare_conversion_funnels(funnels_v1: dict, funnels_v2: dict) -> dict:
+    comparison = {}
+    steps = set(funnels_v1.keys()) | set(funnels_v2.keys())
+    for step in steps:
+        v1_count = funnels_v1.get(step, 0)
+        v2_count = funnels_v2.get(step, 0)
+        conversion_v1 = funnels_v1.get('conversion_rate', 0)
+        conversion_v2 = funnels_v2.get('conversion_rate', 0)
+        comparison[step] = {
+            "v1_count": v1_count,
+            "v2_count": v2_count,
+            "v1_conversion_rate": conversion_v1,
+            "v2_conversion_rate": conversion_v2
+        }
+    return comparison
+
+def compare_time_on_page(metrics_v1: dict, metrics_v2: dict) -> dict:
+    time_v1 = metrics_v1.get('avg_time_per_page', {})
+    time_v2 = metrics_v2.get('avg_time_per_page', {})
+    comparison = {}
+    all_pages = set(time_v1.keys()) | set(time_v2.keys())
+    for page in all_pages:
+        v1_time = time_v1.get(page, 0)
+        v2_time = time_v2.get(page, 0)
+        delta = v2_time - v1_time
+        delta_pct = (delta / v1_time * 100) if v1_time != 0 else 0
+        comparison[page] = {
+            "v1_avg_time": v1_time,
+            "v2_avg_time": v2_time,
+            "delta": delta,
+            "delta_pct": round(delta_pct, 2)
+        }
+    return comparison
+
+def compare_new_vs_returning_users(metrics_v1: dict, metrics_v2: dict) -> dict:
+    new_v1 = metrics_v1.get('new_user_metrics', {})
+    new_v2 = metrics_v2.get('new_user_metrics', {})
+    returning_v1 = metrics_v1.get('returning_user_metrics', {})
+    returning_v2 = metrics_v2.get('returning_user_metrics', {})
+
+    comparison = {
+        'new_users': {
+            'bounce_rate': {'v1': new_v1.get('bounce_rate', 0), 'v2': new_v2.get('bounce_rate', 0)},
+            'avg_duration': {'v1': new_v1.get('avg_duration', 0), 'v2': new_v2.get('avg_duration', 0)},
+            'conversion_rate': {'v1': new_v1.get('conversion_rate', 0), 'v2': new_v2.get('conversion_rate', 0)}
+        },
+        'returning_users': {
+            'bounce_rate': {'v1': returning_v1.get('bounce_rate', 0), 'v2': returning_v2.get('bounce_rate', 0)},
+            'avg_duration': {'v1': returning_v1.get('avg_duration', 0), 'v2': returning_v2.get('avg_duration', 0)},
+            'conversion_rate': {'v1': returning_v1.get('conversion_rate', 0), 'v2': returning_v2.get('conversion_rate', 0)}
+        }
+    }
+    return comparison
+
+def compare_goals_completion(metrics_v1: dict, metrics_v2: dict) -> dict:
+    goals_v1 = metrics_v1.get('goals', {})
+    goals_v2 = metrics_v2.get('goals', {})
+    comparison = {}
+    all_goals = set(goals_v1.keys()) | set(goals_v2.keys())
+    for goal in all_goals:
+        v1_count = goals_v1.get(goal, 0)
+        v2_count = goals_v2.get(goal, 0)
+        delta = v2_count - v1_count
+        comparison[goal] = {
+            "v1_count": v1_count,
+            "v2_count": v2_count,
+            "delta": delta
+        }
+    return comparison
+
+def compare_device_performance_by_metric(metrics_v1: dict, metrics_v2: dict) -> dict:
+    dev_v1 = metrics_v1.get('device_metrics', {})
+    dev_v2 = metrics_v2.get('device_metrics', {})
+    comparison = {}
+    all_devices = set(dev_v1.keys()) | set(dev_v2.keys())
+    for device in all_devices:
+        v1_bounce = dev_v1.get(device, {}).get('bounce_rate', 0)
+        v2_bounce = dev_v2.get(device, {}).get('bounce_rate', 0)
+        v1_duration = dev_v1.get(device, {}).get('avg_duration', 0)
+        v2_duration = dev_v2.get(device, {}).get('avg_duration', 0)
+        comparison[device] = {
+            "bounce": {"v1": v1_bounce, "v2": v2_bounce, "delta": v2_bounce - v1_bounce},
+            "duration": {"v1": v1_duration, "v2": v2_duration, "delta": v2_duration - v1_duration}
+        }
+    return comparison
+
+def compare_os_browser_performance(metrics_v1: dict, metrics_v2: dict) -> dict:
+    os_v1 = metrics_v1.get('os_metrics', {})
+    os_v2 = metrics_v2.get('os_metrics', {})
+    browser_v1 = metrics_v1.get('browser_metrics', {})
+    browser_v2 = metrics_v2.get('browser_metrics', {})
+
+    os_comparison = {}
+    all_os = set(os_v1.keys()) | set(os_v2.keys())
+    for os in all_os:
+        v1_conv = os_v1.get(os, {}).get('conversion_rate', 0)
+        v2_conv = os_v2.get(os, {}).get('conversion_rate', 0)
+        os_comparison[os] = {"v1_conv_rate": v1_conv, "v2_conv_rate": v2_conv}
+
+    browser_comparison = {}
+    all_browsers = set(browser_v1.keys()) | set(browser_v2.keys())
+    for browser in all_browsers:
+        v1_bounce = browser_v1.get(browser, {}).get('bounce_rate', 0)
+        v2_bounce = browser_v2.get(browser, {}).get('bounce_rate', 0)
+        browser_comparison[browser] = {"v1_bounce": v1_bounce, "v2_bounce": v2_bounce}
+
+    return {"os": os_comparison, "browser": browser_comparison}
+
+def compare_session_depth_and_pages(metrics_v1: dict, metrics_v2: dict) -> dict:
+    depth_v1 = metrics_v1.get('avg_page_depth', 0)
+    depth_v2 = metrics_v2.get('avg_page_depth', 0)
+    pages_v1 = metrics_v1.get('avg_pages_per_session', 0)
+    pages_v2 = metrics_v2.get('avg_pages_per_session', 0)
+
+    comparison = {
+        "avg_page_depth": {"v1": depth_v1, "v2": depth_v2, "delta": depth_v2 - depth_v1},
+        "avg_pages_per_session": {"v1": pages_v1, "v2": pages_v2, "delta": pages_v2 - pages_v1}
+    }
+    return comparison
+
+def compare_form_interactions(metrics_v1: dict, metrics_v2: dict) -> dict:
+    form_v1 = metrics_v1.get('form_metrics', {})
+    form_v2 = metrics_v2.get('form_metrics', {})
+
+    comparison = {
+        "form_view_rate": {"v1": form_v1.get('view_rate', 0), "v2": form_v2.get('view_rate', 0)},
+        "form_submit_rate": {"v1": form_v1.get('submit_rate', 0), "v2": form_v2.get('submit_rate', 0)},
+        "form_drop_off": {"v1": form_v1.get('drop_off_rate', 0), "v2": form_v2.get('drop_off_rate', 0)}
+    }
+    return comparison

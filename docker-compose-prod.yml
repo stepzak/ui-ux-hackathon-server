@@ -98,7 +98,7 @@ services:
       context: .
       network: host
     volumes:
-      - ./versions:${UPLOAD_DIR}
+      - ./versions_files:${UPLOAD_DIR}
 
     dns:
       - 8.8.8.8
@@ -125,6 +125,7 @@ services:
 
 volumes:
   postgres_data2:
+  versions_files:
     
 networks:
   app:

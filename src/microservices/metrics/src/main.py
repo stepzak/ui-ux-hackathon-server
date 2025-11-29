@@ -1,5 +1,5 @@
 from sqlalchemy import select
-
+from src.shared.utils.analysis import extract_metrics_from_parquet
 from src.shared.core.settings import settings
 from src.shared.dependencies.db import db_dep
 from src.shared.models import VersionFile
@@ -14,4 +14,16 @@ async def get_metrics(version: str, db: db_dep):
     result = await db.execute(stmt)
     res = result.scalar_one_or_none()
     if res:
+        return res.meta
+
+@app.put("/{version}", response_model = VersionMetrics)
+async def update_metrics(version: str, db: db_dep):
+    stmt = select(VersionFile).where(VersionFile.version_name == version)
+    result = await db.execute(stmt)
+    res: VersionFile = result.scalar_one_or_none()
+    if res:
+        metrics = extract_metrics_from_parquet(res.path_to_hits, res.path_to_visits)
+        res.meta = metrics
+        db.add(res)
+        await db.commit()
         return res.meta
